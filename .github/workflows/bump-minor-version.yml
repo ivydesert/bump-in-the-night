@@ -1,0 +1,86 @@
+name: Bump minor version
+
+on:
+  workflow_dispatch:
+    inputs:
+      cadence:
+        description: "Cadence (e.g. 2026.04)"
+        required: true
+        type: string
+      ticket:
+        description: "VIPR ticket number (digits only)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate inputs
+        run: |
+          if ! [[ "${{ inputs.ticket }}" =~ ^[0-9]+$ ]]; then
+            echo "::error::ticket must be digits only, got '${{ inputs.ticket }}'"
+            exit 1
+          fi
+          if ! [[ "${{ inputs.cadence }}" =~ ^[0-9]{4}\.[0-9]{2}$ ]]; then
+            echo "::error::cadence must look like YYYY.MM, got '${{ inputs.cadence }}'"
+            exit 1
+          fi
+
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Bump minorVersion in gradle.properties
+        id: bump
+        run: |
+          set -euo pipefail
+          file="gradle.properties"
+          if [[ ! -f "$file" ]]; then
+            echo "::error::$file not found at repo root"
+            exit 1
+          fi
+
+          # Extract current minorVersion (ignoring whitespace around =).
+          current=$(grep -E '^\s*minorVersion\s*=\s*[0-9]+\s*$' "$file" | head -n1 | sed -E 's/^\s*minorVersion\s*=\s*([0-9]+)\s*$/\1/')
+          if [[ -z "${current:-}" ]]; then
+            echo "::error::No 'minorVersion=<number>' line found in $file"
+            exit 1
+          fi
+
+          new=$((current + 1))
+          echo "Bumping minorVersion: $current -> $new"
+
+          # Portable in-place edit: write to a temp file and move.
+          tmp=$(mktemp)
+          sed -E "s/^(\s*minorVersion\s*=\s*)[0-9]+(\s*)$/\1${new}\2/" "$file" > "$tmp"
+          mv "$tmp" "$file"
+
+          # Sanity check.
+          grep -E "^\s*minorVersion\s*=\s*${new}\s*$" "$file" > /dev/null
+
+          echo "new_minor=${new}" >> "$GITHUB_OUTPUT"
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: chore/bump-minor-VIPR-${{ inputs.ticket }}
+          base: main
+          delete-branch: true
+          commit-message: "chore: bump minor version to .${{ steps.bump.outputs.new_minor }} for ${{ inputs.cadence }} (VIPR-${{ inputs.ticket }})"
+          title: "chore: bump minor version to .${{ steps.bump.outputs.new_minor }} for ${{ inputs.cadence }} (VIPR-${{ inputs.ticket }})"
+          body: |
+            Automated minor version bump.
+
+            - **Cadence:** ${{ inputs.cadence }}
+            - **Ticket:** VIPR-${{ inputs.ticket }}
+            - **New minorVersion:** `.${{ steps.bump.outputs.new_minor }}`
+
+            Triggered by @${{ github.actor }} via `workflow_dispatch`.
+          add-paths: gradle.properties
