@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       cadence:
-        description: "Cadence (e.g. 2026.04)"
+        description: "Cadence (e.g. 2026.05)"
         required: true
         type: string
       ticket:
-        description: "VIPR ticket identifier (e.g. 1234 or ABC-1234)"
+        description: "VIPR ticket identifier (e.g. VIPR-12345)"
         required: true
         type: string
 
@@ -73,17 +73,17 @@ jobs:
       - name: Create pull request
         uses: peter-evans/create-pull-request@v6
         with:
-          branch: chore/bump-minor-VIPR-${{ inputs.ticket }}
+          branch: chore/bump-minor-${{ inputs.ticket }}
           base: main
           delete-branch: true
-          commit-message: "chore: bump minor version to .${{ steps.bump.outputs.new_minor }} for ${{ inputs.cadence }} (VIPR-${{ inputs.ticket }})"
-          title: "chore: bump minor version to .${{ steps.bump.outputs.new_minor }} for ${{ inputs.cadence }} (VIPR-${{ inputs.ticket }})"
+          commit-message: "chore: bump minor version to .${{ steps.bump.outputs.new_minor }} for ${{ inputs.cadence }} (${{ inputs.ticket }})"
+          title: "chore: bump minor version to .${{ steps.bump.outputs.new_minor }} for ${{ inputs.cadence }} (${{ inputs.ticket }})"
           body: |
             Automated minor version bump.
 
             - **Cadence:** ${{ inputs.cadence }}
-            - **Ticket:** VIPR-${{ inputs.ticket }}
-            - **New minorVersion:** `.${{ steps.bump.outputs.new_minor }}`
+            - **Ticket:** ${{ inputs.ticket }}
+            - **Minor version:** `.${{ steps.bump.outputs.new_minor }}`
 
             Triggered by @${{ github.actor }} via `workflow_dispatch`.
           add-paths: gradle.properties
