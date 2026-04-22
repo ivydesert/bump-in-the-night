@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       ticket:
-        description: "VIPR ticket number (digits only)"
+        description: "VIPR ticket identifier (e.g. 1234 or ABC-1234)"
         required: true
         type: string
 
@@ -22,8 +22,11 @@ jobs:
     steps:
       - name: Validate inputs
         run: |
-          if ! [[ "${{ inputs.ticket }}" =~ ^[0-9]+$ ]]; then
-            echo "::error::ticket must be digits only, got '${{ inputs.ticket }}'"
+          # Ticket: must be non-empty and only contain safe characters
+          # (letters, digits, dash, underscore, dot) to avoid injection into
+          # branch names, commit messages, and PR bodies.
+          if ! [[ "${{ inputs.ticket }}" =~ ^[A-Za-z0-9._-]+$ ]]; then
+            echo "::error::ticket must be non-empty and contain only letters, digits, '.', '-', or '_'. Got '${{ inputs.ticket }}'"
             exit 1
           fi
           if ! [[ "${{ inputs.cadence }}" =~ ^[0-9]{4}\.[0-9]{2}$ ]]; then
